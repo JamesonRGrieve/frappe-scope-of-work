@@ -51,6 +51,7 @@ def catalogue(code: str, group: str, requires: tuple[str, ...] = (), **values: A
 			"is_stock_item": 0,
 			"is_sales_item": 1,
 			"scope_enabled": 1,
+			"scope_stack": None if values.get("scope_is_choice_group") else values.pop("stack", "ERPNext"),
 			"scope_requires": [{"requirement": r} for r in requires],
 			**values,
 		}
@@ -62,6 +63,8 @@ class ScopeTestCase(ERPNextTestSuite):
 	def setUpClass(cls) -> None:
 		super().setUpClass()
 		ensure_fields()
+		for component in ("ERPNext", "Proxmox", "WordPress"):
+			ensure("Scope Stack Component", component, {"component_name": component})
 		for order, (letter, group) in enumerate(GROUPS.items()):
 			ensure("Item Group", group, {"item_group_name": group, "parent_item_group": ROOT_GROUP})
 			frappe.db.set_value(
@@ -71,8 +74,10 @@ class ScopeTestCase(ERPNextTestSuite):
 			)
 		ensure("Price List", PRICE_LIST, {"price_list_name": PRICE_LIST, "currency": "INR", "selling": 1, "enabled": 1})
 		catalogue(HOSTING, GROUPS["H"], scope_is_choice_group=1, scope_required=1)
-		catalogue(OWN, GROUPS["H"], scope_choice_group=HOSTING, scope_provides="A place for the server.")
-		catalogue(HOSTED, GROUPS["H"], scope_choice_group=HOSTING, scope_charge="Per month")
+		catalogue(
+			OWN, GROUPS["H"], stack="Proxmox", scope_choice_group=HOSTING, scope_provides="A place for the server."
+		)
+		catalogue(HOSTED, GROUPS["H"], stack="Proxmox", scope_choice_group=HOSTING, scope_charge="Per month")
 		catalogue(
 			FOUNDATION,
 			GROUPS["F"],
@@ -81,7 +86,7 @@ class ScopeTestCase(ERPNextTestSuite):
 			scope_delivers="ERPNext installed\nDaily backups",
 			scope_acceptance="A sale is recorded.",
 		)
-		catalogue(SITE, GROUPS["W"], (FOUNDATION,), scope_provides="The domain.")
+		catalogue(SITE, GROUPS["W"], (FOUNDATION,), stack="WordPress", scope_provides="The domain.")
 		catalogue(INTAKE, GROUPS["I"], (FOUNDATION,))
 		catalogue(STORE, GROUPS["W"], (SITE, INTAKE), scope_acceptance="A test order is paid.")
 		catalogue(LATER, GROUPS["I"], (INTAKE,), scope_later=1)
@@ -133,6 +138,7 @@ class Catalogue(ScopeTestCase):
 		self.assertFalse(rows[SITE].requested, "only the item named is a request; prerequisites are not")
 		self.assertEqual(rows[FOUNDATION].delivers, "ERPNext installed\nDaily backups")
 		self.assertEqual(rows[HOSTED].charge, "Per month")
+		self.assertEqual((rows[SITE].stack, rows[OWN].stack, rows[HOSTING].stack), ("WordPress", "Proxmox", ""))
 		self.assertEqual(rows[SITE].rate, 2500)
 		self.assertEqual(rows[INTAKE].rate, 0, "no Item Price: stays zero, printed TBS")
 		self.assertEqual(
@@ -228,6 +234,7 @@ class Drafts(ScopeTestCase):
 		# has_alternative_item is set by ERPNext on submit only; a draft keeps the alternatives by position.
 		self.assertEqual(quotation.net_total, 4000 + 6000 + 2500 + 0 + 5000, "the alternative is left out of the total")
 		self.assertIn("Acceptance:", quotation.items[2].description)
+		self.assertIn("<b>Built on:</b> WordPress", quotation.items[3].description)
 		contract = frappe.get_doc("Contract", made["contract"])
 		self.assertEqual(contract.docstatus, 0)
 		self.assertEqual((contract.document_type, contract.document_name), ("Quotation", quotation.name))
@@ -278,11 +285,20 @@ class Import(ScopeTestCase):
 				{"letter": "W", "name": "Web", "item_group": GROUPS["W"], "order": 2},
 			],
 			"items": [
-				{"code": codes[5], "id": "X3", "name": "Later", "branch": "W", "any_of": ["W7", "F1"], "later": True},
+				{
+					"code": codes[5],
+					"id": "X3",
+					"stack": "ERPNext",
+					"name": "Later",
+					"branch": "W",
+					"any_of": ["W7", "F1"],
+					"later": True,
+				},
 				{"code": codes[0], "id": "H1", "name": "Hosting", "branch": "H", "is_choice": True, "required": True},
 				{
 					"code": codes[1],
 					"id": "H1a",
+					"stack": "Proxmox",
 					"name": "Own",
 					"branch": "H",
 					"choice_of": "H1",
@@ -291,15 +307,25 @@ class Import(ScopeTestCase):
 				{
 					"code": codes[2],
 					"id": "H1b",
+					"stack": "Proxmox",
 					"name": "Hosted",
 					"branch": "H",
 					"choice_of": "H1",
 					"charge": "Per month",
 				},
-				{"code": codes[3], "id": "F1", "name": "Root", "branch": "F", "requires": ["H1"], "required": True},
+				{
+					"code": codes[3],
+					"id": "F1",
+					"stack": "ERPNext",
+					"name": "Root",
+					"branch": "F",
+					"requires": ["H1"],
+					"required": True,
+				},
 				{
 					"code": codes[4],
 					"id": "W7",
+					"stack": "Matomo",
 					"name": "Site",
 					"branch": "W",
 					"requires": ["F1"],
@@ -316,6 +342,8 @@ class Import(ScopeTestCase):
 		doc = frappe.get_doc("Scope of Work", name)
 		self.assertEqual([r.scope_id for r in doc.items], ["X3", "H1", "H1a", "H1b", "F1", "W7"])
 		self.assertEqual(self.rows(doc)[codes[4]].delivers, "A page\nA form")
+		self.assertTrue(frappe.db.exists("Scope Stack Component", "Matomo"), "a new component is created")
+		self.assertEqual(frappe.db.get_value("Item", codes[4], "scope_stack"), "Matomo")
 		self.assertEqual([(p.items, p.provides) for p in doc.provides], [("W7", "The domain.")])
 		later = frappe.get_doc("Item", codes[5])
 		self.assertEqual([(r.requirement, r.any_of) for r in later.scope_requires], [(codes[4], 1), (codes[3], 1)])

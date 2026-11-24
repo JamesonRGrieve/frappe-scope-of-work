@@ -8,7 +8,7 @@ Shape (every key but the marked ones is optional)::
       "uom": "Nos",
       "branches": [{"letter": "W", "name": "Web", "colour": "#2f6fb3", "order": 2}],          # required
       "items": [                                                                              # required
-        {"code": "SOW Web Store", "id": "W4", "name": "Online store", "branch": "W",
+        {"code": "SOW Web Store", "id": "W4", "name": "Online store", "branch": "W", "stack": "ERPNext",
          "requires": ["W1", "I1"], "any_of": [], "is_choice": false, "choice_of": "",
          "later": false, "required": false, "charge": "One-time" | "Per month",
          "delivers": ["…"], "acceptance": "…", "note": "…", "provides": "…",
@@ -21,7 +21,8 @@ Shape (every key but the marked ones is optional)::
                 "changes": ["…"], "open_points": ["…"], "payment_terms": "…", "signatory": "…"}
     }
 
-Prerequisites name item IDs (as in the source scope), not item codes, and the IDs are kept. A catalogue Item
+"stack" is the proposed stack component (a Scope Stack Component, created if missing); every item but a
+choice group needs one. Prerequisites name item IDs (as in the source scope), not item codes, and the IDs are kept. A catalogue Item
 that already exists is left as it is (its wording on the scope row still comes from the file); a branch's Item
 Group is created if missing and its letter, colour and order are set.
 """
@@ -46,6 +47,9 @@ def import_scope(data: dict[str, Any]) -> str:
 		if item["branch"] not in groups:
 			frappe.throw(_("{0} is in branch {1}, which the file does not define.").format(item["id"], item["branch"]))
 	uom = data.get("uom") or "Nos"
+	for component in sorted({item["stack"] for item in items if item.get("stack")}):
+		if not frappe.db.exists("Scope Stack Component", component):
+			frappe.get_doc({"doctype": "Scope Stack Component", "component_name": component}).insert()
 	for item in prerequisites_first(items, by_id):
 		ensure_item(item, by_id, groups[item["branch"]], uom)
 	scope = data["scope"]
@@ -105,6 +109,7 @@ def row(item: dict[str, Any], group: str) -> dict[str, Any]:
 		"item_code": item["code"],
 		"item_name": item["name"],
 		"branch": group,
+		"stack": item.get("stack") or "",
 		"requires": ", ".join(item.get("requires") or []),
 		"any_of": ", ".join(item.get("any_of") or []),
 		"is_choice_group": int(bool(item.get("is_choice"))),
@@ -164,6 +169,7 @@ def ensure_item(item: dict[str, Any], by_id: dict[str, dict[str, Any]], group: s
 			"scope_later": int(bool(item.get("later"))),
 			"scope_required": int(bool(item.get("required"))),
 			"scope_charge": item.get("charge") or t.ONE_TIME,
+			"scope_stack": item.get("stack") or None,
 			"scope_requires": [{"requirement": code(r)} for r in item.get("requires") or []]
 			+ [{"requirement": code(r), "any_of": 1} for r in item.get("any_of") or []],
 			"scope_delivers": "\n".join(item.get("delivers") or []),

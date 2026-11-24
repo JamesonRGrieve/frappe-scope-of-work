@@ -109,6 +109,7 @@ def add_items(doc: Any, codes: list[str], requested: bool = False, recommended: 
 					"item_code": code,
 					"item_name": item.item_name,
 					"branch": item.item_group,
+					"stack": item.get("scope_stack") or "",
 					"requires": ", ".join(by_code[c].scope_id for c in requires),
 					"any_of": ", ".join(by_code[c].scope_id for c in any_of),
 					"is_choice_group": item.get("scope_is_choice_group") or 0,
@@ -212,6 +213,7 @@ def to_scope(doc: Any) -> t.Scope:
 				id=row.scope_id,
 				name=row.item_name or row.item_code,
 				branch=branch.letter,
+				stack=row.stack or "",
 				requires=split_ids(row.requires),
 				any_of=split_ids(row.any_of),
 				delivers=lines(row.delivers),
@@ -323,6 +325,8 @@ def quote_rows(tree: t.Tree) -> list[tuple[t.Entry, bool]]:
 def describe(e: t.Entry) -> str:
 	html = "".join(f"<li>{frappe.utils.escape_html(text)}</li>" for text in e.delivers)
 	parts = [f"<ul>{html}</ul>"] if html else []
+	if e.stack:
+		parts.append(f"<p><b>Built on:</b> {frappe.utils.escape_html(e.stack)}</p>")
 	if e.acceptance:
 		parts.append(f"<p><b>Acceptance:</b> {frappe.utils.escape_html(e.acceptance)}</p>")
 	if e.note:

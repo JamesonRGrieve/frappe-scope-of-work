@@ -21,6 +21,9 @@ Nothing is submitted. The app ships no catalogue: item wording, prices and clien
 - **Items are Items.** Tick *In the scope catalogue* on the Item's *Scope of Work* tab, list what it
   requires (ticked rows are alternatives: one of them is enough), and write what it delivers (one point per
   line), its acceptance, any note and what the client provides.
+- **Every item names a proposed stack component** (ERPNext, WordPress, Proxmox, OPNsense…), picked from
+  *Scope Stack Component*. It shows in the item's box on the drawing, in the document and on the quote line;
+  a scope with an item lacking one is refused.
 - **Choice groups** (exactly one option is taken, such as own server or hosting as a service) are an Item
   with *Choice group* ticked; each option is an Item with *Option of* set to it. Other items require the
   group, never an option.

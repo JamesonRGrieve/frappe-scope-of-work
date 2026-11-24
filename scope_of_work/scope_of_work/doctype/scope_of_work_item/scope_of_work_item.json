@@ -8,6 +8,7 @@
   "scope_id",
   "item_code",
   "item_name",
+  "stack",
   "branch",
   "requires",
   "any_of",
@@ -57,7 +58,16 @@
    "fieldtype": "Data",
    "label": "Name",
    "in_list_view": 1,
-   "columns": 3
+   "columns": 2
+  },
+  {
+   "fieldname": "stack",
+   "fieldtype": "Link",
+   "label": "Proposed stack",
+   "options": "Scope Stack Component",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "What the item is built on; shown in its box on the drawing."
   },
   {
    "fieldname": "branch",

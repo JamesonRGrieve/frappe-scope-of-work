@@ -38,6 +38,7 @@ class Entry:
 	id: str
 	name: str
 	branch: str  # branch letter
+	stack: str = ""  # the proposed stack component it is built on (ERPNext, WordPress, Proxmox…)
 	requires: list[str] = field(default_factory=list)
 	any_of: list[str] = field(default_factory=list)  # needs at least one of these as well as `requires`
 	delivers: list[str] = field(default_factory=list)
@@ -125,6 +126,8 @@ class Tree:
 					problems.append(
 						f"{e.id} requires {p}, a later item; a priced item cannot depend on an unpriced one"
 					)
+			if not e.is_choice and not e.stack.strip():
+				problems.append(f"{e.id} has no proposed stack component")
 			if e.choice_of:
 				group = self.by_id.get(e.choice_of)
 				if group is None or not group.is_choice:
@@ -368,10 +371,12 @@ BOX_W, BOX_H, COL_W, ROW_H, LEFT, TOP = 264, 54, 344, 66, 30, 118
 REQUESTED_COLOUR = "#f2b134"
 RECOMMENDED_COLOUR = "#5fd39a"
 TEXT_W = 7.9  # average width of a bold 14px Helvetica character
+STACK_W = 6.4  # average width of a bold 10px Helvetica character
 
 
 def fit(text: str, room: float, size: float = 14, smallest: float = 11) -> tuple[str, float]:
-	"""Shrink the font until the text fits the room, then cut it with an ellipsis."""
+	"""Shrink the font until the text fits the room, then cut it with an ellipsis. Widths scale from a bold
+	14px character, so this is generous for regular text."""
 	while size > smallest and len(text) * TEXT_W * size / 14 > room:
 		size -= 0.5
 	limit = int(room / (TEXT_W * size / 14))
@@ -439,7 +444,7 @@ def svg(tree: Tree) -> str:
 		out.append(
 			f'<text x="{lx + 20}" y="{ly + 12}" fill="#c5ced8" font-size="13">{escape(branch.name)} ({branch.letter})</text>'
 		)
-		lx += 30 + len(branch.name) * 8 + 30
+		lx += 20 + len(f"{branch.name} ({branch.letter})") * 7.4 + 24
 	if highlight:
 		for label, colour in (("Requested by you", REQUESTED_COLOUR), ("Recommended", RECOMMENDED_COLOUR)):
 			out.append(
@@ -494,7 +499,7 @@ def _box(tree: Tree, e: Entry, xy) -> list[str]:
 			f'<circle cx="{x + 20}" cy="{y + BOX_H / 2}" r="7" fill="{fill}" stroke="{colour}" stroke-width="2"/>'
 		)
 		text_x = x + 38
-		sub = "option · " + e.charge.lower() + (" · default" if e.default_option else "")
+		sub = e.charge.lower() + (" · default" if e.default_option else "")
 		text_colour = "#e8edf2"
 	elif e.later:
 		out.append(
@@ -513,12 +518,11 @@ def _box(tree: Tree, e: Entry, xy) -> list[str]:
 		elif e.required:
 			sub = "required"
 		else:
-			sub = f"{tree.branches[e.branch].name} · " + ("opted in" if e.opted_in else "opt-in")
+			sub = "opted in" if e.opted_in else "opt-in"
 	label, size = fit(f"{e.id}  {e.name}", x + BOX_W - 10 - text_x)
 	out.append(
 		f'<text x="{text_x}" y="{y + 23}" fill="{text_colour}" font-size="{size}" font-weight="bold">{escape(label)}</text>'
 	)
-	out.append(f'<text x="{text_x}" y="{y + 42}" fill="#9aa7b4" font-size="12">{escape(sub)}</text>')
 	tx = x + BOX_W - 8
 	for text, mark in reversed(tags):
 		w = len(text) * 7.2 + 12
@@ -529,6 +533,21 @@ def _box(tree: Tree, e: Entry, xy) -> list[str]:
 			f'text-anchor="middle">{text}</text>'
 		)
 		tx -= 4
+	sx = text_x
+	if e.stack:
+		stack, _size = fit(e.stack, max(tx - sx - 60, 40), size=10, smallest=10)
+		w = len(stack) * STACK_W + 12
+		out.append(
+			f'<rect x="{sx}" y="{y + 31}" width="{w:.1f}" height="16" rx="4" fill="none" stroke="{colour}" '
+			'stroke-width="1.5"/>'
+		)
+		out.append(
+			f'<text x="{sx + w / 2:.1f}" y="{y + 43}" fill="#e8edf2" font-size="10" font-weight="bold" '
+			f'text-anchor="middle">{escape(stack)}</text>'
+		)
+		sx += w + 6
+	sub, size = fit(sub, tx - sx - 4, size=12, smallest=10)
+	out.append(f'<text x="{sx:.1f}" y="{y + 43}" fill="#9aa7b4" font-size="{size}">{escape(sub)}</text>')
 	return out
 
 
@@ -676,7 +695,10 @@ def markdown(tree: Tree) -> str:
 	]
 
 	section("Every item")
-	lines += ["| Item | Name | Branch | Tier | Requires | Unlocks |", "|---|---|---|---|---|---|"]
+	lines += [
+		"| Item | Name | Branch | Built on | Tier | Requires | Unlocks |",
+		"|---|---|---|---|---|---|---|",
+	]
 	for e in entries:
 		name = e.name + (" *(later)*" if e.later else "")
 		if e.is_choice:
@@ -685,7 +707,7 @@ def markdown(tree: Tree) -> str:
 			name += f" *(option of {e.choice_of})*"
 		requires = "none" if e.choice_of else requires_text(e)
 		lines.append(
-			f"| {e.id} | {name} | {tree.branches[e.branch].name} | {tree.tier[e.id]} | {requires} | "
+			f"| {e.id} | {name} | {tree.branches[e.branch].name} | {e.stack or '—'} | {tree.tier[e.id]} | {requires} | "
 			f"{', '.join(tree.unlocks(e.id)) or 'none'} |"
 		)
 	lines.append("")
@@ -705,7 +727,8 @@ def markdown(tree: Tree) -> str:
 					lines += [e.note, ""]
 				lines.append(f"Options: {opts}.")
 				continue
-			heading = f"*Option of {e.choice_of}.*" if e.choice_of else f"*Requires: {requires_text(e)}.*"
+			heading = f"*Option of {e.choice_of}." if e.choice_of else f"*Requires: {requires_text(e)}."
+			heading += f" Built on: {e.stack}.*" if e.stack else "*"
 			lines += ["", f"#### {e.id}. {e.name}", "", heading]
 			if e.delivers:
 				lines += [""] + [f"- {text}" for text in e.delivers]
@@ -719,10 +742,10 @@ def markdown(tree: Tree) -> str:
 		lines += [
 			"These are where the tree can grow next. Each is scoped and quoted when the client wants it.",
 			"",
-			"| Item | Name | Requires |",
-			"|---|---|---|",
+			"| Item | Name | Built on | Requires |",
+			"|---|---|---|---|",
 		]
-		lines += [f"| {e.id} | {e.name} | {requires_text(e)} |" for e in later]
+		lines += [f"| {e.id} | {e.name} | {e.stack} | {requires_text(e)} |" for e in later]
 		lines.append("")
 
 	if s.provides_general or s.provides:

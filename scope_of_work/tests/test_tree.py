@@ -22,14 +22,23 @@ def entries() -> list[t.Entry]:
 	one-of-alternatives item and a later item."""
 	return [
 		t.Entry("H1", "Hosting", "H", is_choice=True, required=True),
-		t.Entry("H1a", "Own server", "H", choice_of="H1", default_option=True, rate=Decimal("4000")),
-		t.Entry("H1b", "Hosted", "H", choice_of="H1", charge=t.PER_MONTH, rate=Decimal("150")),
-		t.Entry("F1", "Foundation", "F", requires=["H1"], required=True, rate=Decimal("6000"), delivers=["One", "Two"]),
-		t.Entry("W1", "Brochure site", "W", requires=["F1"], rate=Decimal("2500")),
-		t.Entry("I1", "Intake", "I", requires=["F1"]),
-		t.Entry("W2", "Store", "W", requires=["W1", "I1"], acceptance="A test order is paid."),
-		t.Entry("W3", "Gift cards", "W", any_of=["W2", "I1"]),
-		t.Entry("X1", "Point of sale", "I", requires=["I1"], later=True),
+		t.Entry("H1a", "Own server", "H", choice_of="H1", default_option=True, rate=Decimal("4000"), stack="Proxmox"),
+		t.Entry("H1b", "Hosted", "H", choice_of="H1", charge=t.PER_MONTH, rate=Decimal("150"), stack="Proxmox"),
+		t.Entry(
+			"F1",
+			"Foundation",
+			"F",
+			requires=["H1"],
+			required=True,
+			rate=Decimal("6000"),
+			delivers=["One", "Two"],
+			stack="ERPNext",
+		),
+		t.Entry("W1", "Brochure site", "W", requires=["F1"], rate=Decimal("2500"), stack="WordPress"),
+		t.Entry("I1", "Intake", "I", requires=["F1"], stack="ERPNext"),
+		t.Entry("W2", "Store", "W", requires=["W1", "I1"], acceptance="A test order is paid.", stack="ERPNext"),
+		t.Entry("W3", "Gift cards", "W", any_of=["W2", "I1"], stack="ERPNext"),
+		t.Entry("X1", "Point of sale", "I", requires=["I1"], later=True, stack="ERPNext"),
 	]
 
 
@@ -61,6 +70,14 @@ class Rules(unittest.TestCase):
 		self.assertEqual(tree.tier["F1"], 1)
 		self.assertEqual(tree.tier["W2"], 3)
 		self.assertEqual(tree.tier["W3"], 4)
+
+	def test_every_item_needs_a_stack_component(self):
+		items = entries()
+		find(items, "W2").stack = ""
+		self.assertBroken(items, "W2 has no proposed stack component")
+		find(items, "W2").stack = "ERPNext"
+		find(items, "H1").stack = ""
+		t.Tree(scope(items))  # a choice group itself has none; its options do
 
 	def test_unknown_prerequisite(self):
 		items = entries()
@@ -165,6 +182,11 @@ class Svg(unittest.TestCase):
 		self.assertIn("Requested by you", drawing)
 		self.assertIn("stroke-dasharray", drawing)
 
+	def test_stack_component_in_the_box(self):
+		drawing = t.svg(t.Tree(scope()))
+		self.assertIn(">WordPress</text>", drawing)
+		self.assertIn(">Proxmox</text>", drawing)
+
 	def test_no_legend_for_highlights_when_there_are_none(self):
 		self.assertNotIn("Requested by you", t.svg(t.Tree(scope())))
 
@@ -236,6 +258,12 @@ class Markdown(unittest.TestCase):
 		items = entries()
 		find(items, "I1").opted_in = True
 		self.assertNotIn("Total of the items marked", t.markdown(t.Tree(scope(items))))
+
+	def test_stack_component_in_the_document(self):
+		doc = t.markdown(t.Tree(scope()))
+		self.assertIn("| W1 | Brochure site | Web | WordPress | 2 | F1 | W2 |", doc)
+		self.assertIn("*Requires: W1, I1. Built on: ERPNext.*", doc)
+		self.assertIn("| X1 | Point of sale | ERPNext | I1 |", doc)
 
 	def test_text_tree(self):
 		doc = t.markdown(t.Tree(scope()))

@@ -56,9 +56,19 @@ ITEM_FIELDS = [
 		"depends_on": "scope_enabled",
 	},
 	{
+		"fieldname": "scope_stack",
+		"fieldtype": "Link",
+		"options": "Scope Stack Component",
+		"label": "Proposed stack component",
+		"insert_after": "scope_charge",
+		"depends_on": "eval:doc.scope_enabled && !doc.scope_is_choice_group",
+		"mandatory_depends_on": "eval:doc.scope_enabled && !doc.scope_is_choice_group",
+		"description": "What the item is built on (ERPNext, WordPress, Proxmox, OPNsense…); shown in its box on the drawing.",
+	},
+	{
 		"fieldname": "scope_column_break",
 		"fieldtype": "Column Break",
-		"insert_after": "scope_charge",
+		"insert_after": "scope_stack",
 	},
 	{
 		"fieldname": "scope_requires",

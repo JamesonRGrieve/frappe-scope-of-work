@@ -30,6 +30,12 @@
   "rate",
   "column_break_price",
   "charge",
+  "section_internal",
+  "hours",
+  "column_break_internal",
+  "cost",
+  "column_break_margin",
+  "margin",
   "section_text",
   "delivers",
   "acceptance",
@@ -192,6 +198,37 @@
    "label": "Charged",
    "options": "One-time\nPer month",
    "default": "One-time"
+  },
+  {
+   "fieldname": "section_internal",
+   "fieldtype": "Section Break",
+   "label": "Internal estimate (never printed)",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "hours",
+   "fieldtype": "Float",
+   "label": "Hours"
+  },
+  {
+   "fieldname": "column_break_internal",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cost",
+   "fieldtype": "Currency",
+   "label": "Internal cost",
+   "options": "currency"
+  },
+  {
+   "fieldname": "column_break_margin",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "margin",
+   "fieldtype": "Percent",
+   "label": "Margin",
+   "read_only": 1
   },
   {
    "fieldname": "section_text",

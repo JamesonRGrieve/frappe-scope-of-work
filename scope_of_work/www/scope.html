@@ -1,0 +1,104 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_content %}
+<style>
+.sow-page { max-width: 1100px; margin: 0 auto; padding: 16px; font-size: 15px; }
+.sow-page h1 { font-size: 26px; margin-bottom: 4px; }
+.sow-page .sub { color: #5a6570; margin-bottom: 16px; }
+.sow-page .drawing { overflow: auto; border-radius: 10px; margin: 16px 0 24px; max-height: 70vh; }
+.sow-page .drawing svg { max-width: none; }
+.sow-page .branch { margin-top: 22px; font-weight: 600; font-size: 17px; border-bottom: 3px solid; padding-bottom: 4px; }
+.sow-page .item { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; padding: 10px 4px; border-bottom: 1px solid #e3e7eb; }
+.sow-page .item.later { color: #7a8590; }
+.sow-page .item input { width: 18px; height: 18px; margin-top: 3px; }
+.sow-page .name { font-weight: 600; }
+.sow-page .meta { color: #5a6570; font-size: 13px; margin-top: 2px; }
+.sow-page .pill { display: inline-block; border: 1.5px solid #8a96a3; border-radius: 4px; padding: 0 6px; font-size: 12px; margin-right: 6px; }
+.sow-page .badge { display: inline-block; border-radius: 9px; padding: 0 8px; font-size: 11px; font-weight: 700; margin-left: 6px; color: #11161c; }
+.sow-page .badge.req { background: #f2b134; }
+.sow-page .badge.rec { background: #5fd39a; }
+.sow-page .price { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sow-page details { font-size: 13px; margin-top: 4px; }
+.sow-page .bar { position: sticky; bottom: 0; background: #fff; border-top: 2px solid #1d232a; padding: 12px 4px; margin-top: 20px;
+	display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.sow-page .total { font-size: 17px; font-weight: 600; }
+.sow-page .msg { margin-top: 8px; font-size: 14px; }
+.sow-page .msg.err { color: #b3261e; }
+@media (max-width: 600px) { .sow-page .item { grid-template-columns: 30px 1fr; } .sow-page .price { grid-column: 2; text-align: left; } }
+</style>
+<div class="sow-page">
+{% if missing %}
+	<h1>Scope of work</h1>
+	<p>This link is not valid any more. Please ask us for a new one.</p>
+{% else %}
+	<h1>{{ title }}</h1>
+	<div class="sub">Prepared for {{ prepared_for }} by {{ company }}</div>
+	{% if intro %}<p>{{ intro }}</p>{% endif %}
+	<p>Tick the items you want. An item that needs another item ticks it for you, and unticking an item unticks
+	whatever depends on it. Where you see round buttons, choose one. Items marked
+	<span class="badge req">REQUESTED</span> are ones you asked for; <span class="badge rec">RECOMMENDED</span> are
+	ones we suggest.</p>
+	{% if locked %}<p><b>This scope is {{ status | lower }}; it can no longer be changed here.</b></p>{% endif %}
+	<div class="drawing">{{ drawing }}</div>
+	<form id="sow-form">
+	{% set ns = namespace(branch="") %}
+	{% for it in items %}
+		{% if it.branch != ns.branch and not it.choice_of %}
+			{% set ns.branch = it.branch %}
+			<div class="branch" style="border-color: {{ it.colour }}">{{ it.branch }}</div>
+		{% endif %}
+		{% if it.is_choice %}
+			<div class="item"><div></div><div><div class="name">{{ it.id }} {{ it.name }}</div>
+			<div class="meta">{{ "Choose one" if it.required else "Choose one, or none" }}</div></div><div></div></div>
+		{% else %}
+		<div class="item{% if it.later %} later{% endif %}" style="{% if it.choice_of %}padding-left: 28px{% endif %}">
+			<div>
+			{% if it.later %}
+			{% elif it.choice_of %}
+				<input type="{{ 'radio' if it.group_required else 'checkbox' }}" name="group-{{ it.choice_of }}" value="{{ it.id }}"
+					{% if it.checked %}checked{% endif %} {% if locked or it.delivered %}disabled{% endif %}>
+			{% else %}
+				<input type="checkbox" value="{{ it.id }}" {% if it.checked or it.delivered %}checked{% endif %}
+					{% if locked or it.required or it.delivered %}disabled{% endif %}>
+			{% endif %}
+			</div>
+			<div>
+				<div class="name">{{ it.id }} {{ it.name }}
+					{% if it.requested %}<span class="badge req">REQUESTED</span>{% endif %}
+					{% if it.recommended %}<span class="badge rec">RECOMMENDED</span>{% endif %}
+				</div>
+				<div class="meta">
+					{% if it.stack %}<span class="pill">{{ it.stack }}</span>{% endif %}
+					{{ it.meta }}
+				</div>
+				{% if it.delivers or it.acceptance %}
+				<details><summary>What you get</summary>
+					<ul>{% for d in it.delivers %}<li>{{ d }}</li>{% endfor %}</ul>
+					{% if it.acceptance %}<div><b>Done when:</b> {{ it.acceptance }}</div>{% endif %}
+					{% if it.note %}<div><b>Note:</b> {{ it.note }}</div>{% endif %}
+				</details>
+				{% endif %}
+			</div>
+			<div class="price">{% if not it.later %}{{ it.price }}{% if it.charge == "Per month" and it.rate %} / month{% endif %}{% endif %}</div>
+		</div>
+		{% endif %}
+	{% endfor %}
+	<div class="bar">
+		<div class="total" id="sow-total"></div>
+		{% if not locked %}<button type="submit" class="btn btn-primary">Save my choices</button>{% endif %}
+	</div>
+	<div class="msg" id="sow-msg"></div>
+	</form>
+	<script>
+	window.sow = {
+		items: {{ items | tojson }},
+		key: {{ key | tojson }},
+		currency: {{ currency | tojson }},
+	};
+	</script>
+	<script src="/assets/scope_of_work/js/client_page.js"></script>
+{% endif %}
+</div>
+{% endblock %}

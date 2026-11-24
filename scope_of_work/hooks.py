@@ -14,3 +14,6 @@ required_apps = ["frappe", "erpnext"]
 # The catalogue lives on Item and Item Group; the fields are created (and kept current) by the app.
 after_install = "scope_of_work.install.ensure_fields"
 after_migrate = "scope_of_work.install.ensure_fields"
+
+# The print format renders the scope through this method.
+jinja = {"methods": ["scope_of_work.printing.scope_html"]}

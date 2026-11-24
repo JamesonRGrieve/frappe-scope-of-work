@@ -81,6 +81,9 @@ class Scope:
 	open_points: list[str] = field(default_factory=list)
 	payment_terms: str = ""
 	svg_name: str = "scope-tree.svg"
+	revision: int = 0  # 0: never sent
+	revision_draft: bool = False  # edited since the revision was recorded
+	revision_changes: list[str] = field(default_factory=list)  # since the revision before
 
 
 # ---- the tree's rules
@@ -574,6 +577,10 @@ def markdown(tree: Tree) -> str:
 		f"**Prepared for:** {s.prepared_for}",
 		f"**Date:** {s.date}",
 		f"**Status:** {STATUS_TEXT.get(s.status, s.status)}",
+	]
+	if s.revision:
+		lines.append(f"**Revision:** {s.revision}" + (" (draft, not yet sent)" if s.revision_draft else ""))
+	lines += [
 		"",
 		'"TBS" marks a point still to be specified. Each one is listed again under *Open Points*.',
 		"",
@@ -584,6 +591,10 @@ def markdown(tree: Tree) -> str:
 		nonlocal n
 		n += 1
 		lines.extend([f"## {n}. {title}", ""])
+
+	if s.revision_changes and s.revision > 1:
+		section(f"Changes since revision {s.revision - 1}")
+		lines += [f"- {change}" for change in s.revision_changes] + [""]
 
 	section("How this scope works")
 	if s.intro:

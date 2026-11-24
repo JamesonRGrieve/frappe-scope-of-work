@@ -42,6 +42,28 @@ Nothing is submitted. The app ships no catalogue: item wording, prices and clien
 5. Set the status to *Sent* when it goes to the client. From then on IDs are fixed: rows can be added or
    withdrawn, never renumbered or removed.
 
+## More
+
+- **Internal estimate.** Hours and internal cost per catalogue item (copied to the scope, editable). The scope
+  shows each row's margin, totals for what it charges now, and a red banner for anything priced below cost.
+  None of it is ever printed for the client.
+- **Packages and suggestions.** A *Scope Package* adds a saved bundle in one go (some items as
+  recommendations). An Item's *Often taken with* list is offered after adding items, to add as
+  recommendations.
+- **Revisions.** Setting the status to *Sent* (or *Record Revision*) keeps the scope as sent. The document
+  then carries its revision number and, from revision 2, a *Changes since revision N* section.
+- **PDF.** The *Scope of Work* print format and *Download PDF*: the drawing, then the document. The PDF is
+  also attached beside the Markdown and SVG.
+- **Client page.** *Client → Share with Client* makes a private link (`/scope?key=…`). The client sees the
+  tree, ticks items (prerequisites tick and untick themselves, choice groups are radio buttons), watches the
+  total, and saves; their ticks become *Opted in*. Locked once Accepted; a new link or *Revoke* closes the old one.
+- **Nextcloud and Deck.** *File to Nextcloud and Deck* writes the three files into the client's folder,
+  checks each stored size, and attaches each to the scope's Deck card once. Set the address, user and app
+  password in *Scope of Work Settings*.
+- **Delivery.** Once *Accepted*: *Make Project* (one Task per accepted item, Task dependencies from the
+  prerequisites, the stack component as a tag) and *Make Subscription* (the per-month items as monthly
+  Subscription Plans for a Customer; invoices stay drafts).
+
 ## Development
 
 ```sh

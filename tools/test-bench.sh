@@ -88,6 +88,8 @@ main() {
 	serve)
 		# The image keeps its built assets beside sites/, which is a volume, so the link to them is missing.
 		in_bench ln -sfn /home/frappe/frappe-bench/assets sites/assets
+		# This app's own assets are not in the image's build; link its public folder in beside them.
+		podman exec -u 0 "$bench" ln -sfn "$app_dir/scope_of_work/public" /home/frappe/frappe-bench/assets/scope_of_work
 		# A fresh site sends every System Manager to the setup wizard; mark it set up so the desk opens.
 		in_bench bench --site "$site" console <<-'PYTHON' >/dev/null
 			frappe.db.sql("update `tabInstalled Application` set is_setup_complete = 1")
@@ -97,6 +99,11 @@ main() {
 			frappe.clear_cache()
 		PYTHON
 		in_bench bench use "$site"
+		# Stopping this script leaves the server running inside the container; stop any earlier one first.
+		podman exec -u 0 "$bench" sh -c 'for p in /proc/[0-9]*; do
+			[ "${p#/proc/}" = "$$" ] && continue  # the command line of this loop matches too
+			case "$(tr "\0" " " < "$p/cmdline" 2>/dev/null)" in *"frappe serve"*) kill "${p#/proc/}" 2>/dev/null;; esac
+		done; true'
 		in_bench bench serve --port "$serve_port"
 		;;
 	down)

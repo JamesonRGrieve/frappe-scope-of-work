@@ -4,14 +4,16 @@ and make the draft Quotation and Contract from it. Nothing here submits a docume
 
 from __future__ import annotations
 
+import json
 import re
 from decimal import Decimal
 from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import flt, formatdate, md_to_html
+from frappe.utils import flt, formatdate, md_to_html, now_datetime
 
+from scope_of_work import revisions
 from scope_of_work import tree as t
 
 FROZEN = ("Sent", "Accepted")
@@ -121,6 +123,8 @@ def add_items(doc: Any, codes: list[str], requested: bool = False, recommended: 
 					"delivers": item.get("scope_delivers") or "",
 					"acceptance": item.get("scope_acceptance") or "",
 					"note": item.get("scope_note") or "",
+					"hours": item.get("scope_hours") or 0,
+					"cost": item.get("scope_cost") or 0,
 				},
 			)
 			by_code[code] = row
@@ -197,6 +201,119 @@ def opt_in_highlights(doc: Any) -> list[str]:
 	return ticked
 
 
+def add_package(doc: Any, package: str) -> list[str]:
+	"""Add every item of a saved package; its flagged items are marked as recommendations."""
+	rows = frappe.get_doc("Scope Package", package).items
+	added = add_items(doc, [r.item_code for r in rows if not r.recommended])
+	added += add_items(doc, [r.item_code for r in rows if r.recommended], recommended=True)
+	return added
+
+
+def suggestions(doc: Any) -> list[dict[str, Any]]:
+	"""Catalogue items that items on the scope are often taken with, and are not on it yet."""
+	present = {row.item_code: row.scope_id for row in doc.items if not row.withdrawn}
+	out: dict[str, dict[str, Any]] = {}
+	for code, scope_id in present.items():
+		for suggestion in frappe.get_cached_doc("Item", code).get("scope_suggests") or []:
+			if suggestion.item in present or not frappe.db.get_value("Item", suggestion.item, "scope_enabled"):
+				continue
+			entry = out.setdefault(
+				suggestion.item,
+				{
+					"item_code": suggestion.item,
+					"item_name": frappe.get_cached_value("Item", suggestion.item, "item_name"),
+					"because": [],
+					"reasons": [],
+				},
+			)
+			entry["because"].append(scope_id)
+			if suggestion.reason and suggestion.reason not in entry["reasons"]:
+				entry["reasons"].append(suggestion.reason)
+	return sorted(out.values(), key=lambda e: e["item_code"])
+
+
+# ---- internal estimate (never printed)
+
+
+def estimate(doc: Any, tree: t.Tree) -> None:
+	"""Row margins, and totals over what the scope charges now (opted-in and required one-time items, a choice
+	group's chosen or default option). Items priced below their internal cost are listed."""
+	by_id = {row.scope_id: row for row in doc.items}
+	price = cost = hours = 0.0
+	below = []
+	for row in doc.items:
+		rate = flt(row.rate)
+		row.margin = (rate - flt(row.cost)) / rate * 100 if rate and flt(row.cost) else 0
+	for e in tree.entries:
+		if not tree.counted(e):
+			continue
+		row = by_id[e.id]
+		hours += flt(row.hours)
+		if e.charge == t.ONE_TIME:
+			price += flt(row.rate)
+			cost += flt(row.cost)
+		if flt(row.rate) and flt(row.cost) > flt(row.rate):
+			below.append(e.id)
+	doc.total_price, doc.total_cost, doc.total_hours = price, cost, hours
+	doc.total_margin = (price - cost) / price * 100 if price and cost else 0
+	doc.below_cost = ", ".join(below)
+
+
+# ---- revisions
+
+
+def recorded(doc: Any) -> list[Any]:
+	return frappe.get_all(
+		"Scope of Work Revision",
+		filters={"scope": doc.name},
+		fields=["name", "revision", "snapshot"],
+		order_by="revision asc",
+	)
+
+
+def current_snapshot(doc: Any) -> list[dict[str, Any]]:
+	return [revisions.snapshot_row(row) for row in doc.items]
+
+
+def revision_state(doc: Any) -> tuple[int, bool, list[str]]:
+	"""(revision to print, whether it is an unsent draft, changes since the revision before it)."""
+	if doc.is_new():
+		return 0, False, []
+	sent = recorded(doc)
+	if not sent:
+		return 0, False, []
+	now = current_snapshot(doc)
+	last = json.loads(sent[-1].snapshot)
+	since_last = revisions.diff(last, now, doc.currency or "")
+	if since_last:
+		return sent[-1].revision + 1, True, since_last
+	if len(sent) == 1:
+		return sent[-1].revision, False, []
+	return sent[-1].revision, False, revisions.diff(json.loads(sent[-2].snapshot), now, doc.currency or "")
+
+
+def record_revision(doc: Any) -> str:
+	"""Keep the scope as sent. Refuses when nothing changed since the last one."""
+	sent = recorded(doc)
+	now = current_snapshot(doc)
+	if sent and not revisions.diff(json.loads(sent[-1].snapshot), now, doc.currency or ""):
+		frappe.throw(_("Nothing has changed since revision {0}.").format(sent[-1].revision))
+	number = (sent[-1].revision if sent else 0) + 1
+	revision = frappe.get_doc(
+		{
+			"doctype": "Scope of Work Revision",
+			"scope": doc.name,
+			"revision": number,
+			"sent_on": now_datetime(),
+			"snapshot": json.dumps(now, indent=1),
+		}
+	)
+	revision.insert(ignore_permissions=True)
+	doc.db_set("revision", number)
+	revision.db_set("document", t.markdown(build(doc)))
+	return revision.name
+
+
 # ---- reading a scope as a tree
 
 
@@ -235,6 +352,7 @@ def to_scope(doc: Any) -> t.Scope:
 			)
 		)
 	ordered = [b for _order, b in sorted(branches.values(), key=lambda ob: (ob[0], ob[1].letter))]
+	revision, draft, changes = revision_state(doc)
 	return t.Scope(
 		title=doc.title,
 		prepared_for=doc.prepared_for or party_display(doc),
@@ -255,6 +373,9 @@ def to_scope(doc: Any) -> t.Scope:
 		open_points=lines(doc.open_points),
 		payment_terms=(doc.payment_terms or "").strip(),
 		svg_name=SVG_NAME.format(name=doc.name),
+		revision=revision,
+		revision_draft=draft,
+		revision_changes=changes,
 	)
 
 
@@ -279,9 +400,15 @@ def build(doc: Any) -> t.Tree:
 
 
 def attach_files(doc: Any) -> dict[str, str]:
-	"""Write the document and the drawing as attachments of the scope, replacing earlier copies."""
+	"""Write the document, the drawing and the PDF as attachments of the scope, replacing earlier copies."""
+	from scope_of_work import printing
+
 	tree = build(doc)
-	files = {MD_NAME.format(name=doc.name): t.markdown(tree), SVG_NAME.format(name=doc.name): t.svg(tree)}
+	files = {
+		MD_NAME.format(name=doc.name): t.markdown(tree),
+		SVG_NAME.format(name=doc.name): t.svg(tree),
+		printing.PDF_NAME.format(name=doc.name): printing.pdf(doc),
+	}
 	urls = {}
 	for file_name, content in files.items():
 		for old in frappe.get_all(
@@ -402,3 +529,168 @@ def make_drafts(doc: Any) -> dict[str, str | None]:
 	doc.db_set({"quotation": quotation.name, "contract": contract.name if contract else None})
 	attach_files(doc)
 	return {"quotation": quotation.name, "contract": contract.name if contract else None}
+
+
+# ---- delivery and billing
+
+
+def chosen_tasks(tree: t.Tree) -> dict[str, str]:
+	"""Each charged item's ID, plus each choice group's ID mapped to its chosen option's ID."""
+	out = {}
+	for e, alternative in quote_rows(tree):
+		if alternative:
+			continue
+		out[e.id] = e.id
+		if e.choice_of:
+			out[e.choice_of] = e.id
+	return out
+
+
+def make_project(doc: Any) -> str:
+	"""A Project with one Task per item the client accepted, each depending on its prerequisites' Tasks, tagged
+	with its stack component. Only for an Accepted scope; refuses if the scope already has a Project."""
+	if doc.status != "Accepted":
+		frappe.throw(_("Make the Project once the scope is Accepted."))
+	if doc.project:
+		frappe.throw(_("This scope already has Project {0}.").format(doc.project))
+	tree = build(doc)
+	charged = chosen_tasks(tree)
+	if not charged:
+		frappe.throw(_("Nothing is opted in, so there is nothing to deliver."))
+	project = frappe.get_doc(
+		{
+			"doctype": "Project",
+			"project_name": f"{doc.title} ({doc.prepared_for or doc.party})"[:140],
+			"company": doc.company,
+			"customer": doc.party if doc.party_type == "Customer" else None,
+			"expected_start_date": frappe.utils.today(),
+		}
+	).insert()
+	from frappe.desk.doctype.tag.tag import add_tag
+
+	tasks: dict[str, str] = {}
+	for e in tree.ordered():
+		if e.id not in charged.values() or e.id in tasks:
+			continue
+		group = tree.by_id[e.choice_of] if e.choice_of else e
+		depends = []
+		for parent in group.requires + group.any_of:
+			if parent in charged and charged[parent] in tasks:
+				depends.append({"task": tasks[charged[parent]]})
+		task = frappe.get_doc(
+			{
+				"doctype": "Task",
+				"subject": f"{e.id} {e.name}"[:140],
+				"project": project.name,
+				"description": describe(e),
+				"depends_on": depends,
+			}
+		).insert()
+		tasks[e.id] = task.name
+		if e.stack:
+			add_tag(e.stack, "Task", task.name)
+	doc.db_set("project", project.name)
+	return project.name
+
+
+def make_subscription(doc: Any, start_date: str | None = None) -> str:
+	"""One Subscription for the accepted per-month items, its invoices left as drafts. Only for an Accepted scope
+	for a Customer, with every per-month item priced."""
+	if doc.status != "Accepted":
+		frappe.throw(_("Make the Subscription once the scope is Accepted."))
+	if doc.party_type != "Customer":
+		frappe.throw(_("A Subscription needs a Customer; this scope is for a {0}.").format(doc.party_type))
+	if doc.subscription:
+		frappe.throw(_("This scope already has Subscription {0}.").format(doc.subscription))
+	tree = build(doc)
+	by_id = {row.scope_id: row for row in doc.items}
+	monthly = [e for e in tree.entries if tree.counted(e) and e.charge == t.PER_MONTH]
+	if not monthly:
+		frappe.throw(_("No accepted item is charged per month."))
+	unpriced = [e.id for e in monthly if not e.rate]
+	if unpriced:
+		frappe.throw(_("Price {0} first.").format(", ".join(unpriced)))
+	plans = []
+	for e in monthly:
+		code = by_id[e.id].item_code
+		plan = frappe.db.get_value(
+			"Subscription Plan",
+			{
+				"item": code,
+				"price_determination": "Fixed Rate",
+				"cost": float(e.rate),
+				"currency": doc.currency,
+				"billing_interval": "Month",
+				"billing_interval_count": 1,
+			},
+		)
+		if not plan:
+			plan = (
+				frappe.get_doc(
+					{
+						"doctype": "Subscription Plan",
+						"plan_name": f"{code} {doc.currency} {float(e.rate):.2f} monthly"[:140],
+						"item": code,
+						"currency": doc.currency,
+						"price_determination": "Fixed Rate",
+						"cost": float(e.rate),
+						"billing_interval": "Month",
+						"billing_interval_count": 1,
+					}
+				)
+				.insert()
+				.name
+			)
+		plans.append({"plan": plan, "qty": 1})
+	subscription = frappe.get_doc(
+		{
+			"doctype": "Subscription",
+			"party_type": "Customer",
+			"party": doc.party,
+			"company": doc.company,
+			"start_date": start_date or frappe.utils.today(),
+			"plans": plans,
+			"submit_invoice": 0,
+			"generate_invoice_at": "Beginning of the current subscription period",
+		}
+	).insert()
+	doc.db_set("subscription", subscription.name)
+	return subscription.name
+
+
+# ---- the client's page
+
+
+def share_with_client(doc: Any) -> str:
+	"""Give the scope a fresh client key (any earlier link stops working) and return the page's address."""
+	key = frappe.generate_hash(length=32)
+	link = frappe.utils.get_url(f"/scope?key={key}")
+	doc.db_set({"client_key": key, "client_link": link})
+	return link
+
+
+def revoke_client_link(doc: Any) -> None:
+	doc.db_set({"client_key": None, "client_link": None})
+
+
+def apply_client_choice(doc: Any, ids: list[str]) -> list[str]:
+	"""Set Opted in from the client's ticks. Only items the client may choose change (not required, later,
+	delivered or withdrawn ones); the tree's own checks then refuse a choice that breaks a prerequisite.
+	Returns the IDs now opted in."""
+	chosen = set(ids)
+	rows = [r for r in doc.items if not r.withdrawn]
+	known = {r.scope_id for r in rows}
+	unknown = sorted(chosen - known)
+	if unknown:
+		frappe.throw(_("Not on this scope: {0}").format(", ".join(unknown)))
+	for row in rows:
+		if row.is_choice_group or row.later or row.delivered or (row.required and not row.choice_of):
+			continue
+		row.opted_in = int(row.scope_id in chosen)
+	doc.client_responded_on = now_datetime()
+	doc.save(ignore_permissions=True)
+	ticked = sorted(r.scope_id for r in rows if r.opted_in)
+	doc.add_comment(
+		"Comment", _("The client saved their choices on the scope page: {0}").format(", ".join(ticked) or "none")
+	)
+	return ticked

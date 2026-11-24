@@ -20,6 +20,13 @@
   "intro",
   "items",
   "tree_preview",
+  "section_internal",
+  "total_price",
+  "total_cost",
+  "column_break_totals",
+  "total_hours",
+  "total_margin",
+  "below_cost",
   "section_terms",
   "provides_general",
   "provides",
@@ -31,8 +38,19 @@
   "open_points",
   "section_documents",
   "quotation",
+  "contract",
+  "revision",
   "column_break_docs",
-  "contract"
+  "project",
+  "subscription",
+  "section_sharing",
+  "client_link",
+  "client_key",
+  "client_responded_on",
+  "column_break_sharing",
+  "nextcloud_folder",
+  "deck_card",
+  "filed_on"
  ],
  "fields": [
   {
@@ -137,6 +155,53 @@
    "label": "Tree"
   },
   {
+   "fieldname": "section_internal",
+   "fieldtype": "Section Break",
+   "label": "Internal estimate (never printed)",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "total_price",
+   "fieldtype": "Currency",
+   "label": "Price of the marked items (one-time)",
+   "options": "currency",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_cost",
+   "fieldtype": "Currency",
+   "label": "Internal cost",
+   "options": "currency",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_hours",
+   "fieldtype": "Float",
+   "label": "Hours",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_margin",
+   "fieldtype": "Percent",
+   "label": "Margin",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "below_cost",
+   "fieldtype": "Small Text",
+   "label": "Priced below cost",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
    "fieldname": "section_terms",
    "fieldtype": "Section Break",
    "label": "Terms",
@@ -202,14 +267,93 @@
    "no_copy": 1
   },
   {
-   "fieldname": "column_break_docs",
-   "fieldtype": "Column Break"
-  },
-  {
    "fieldname": "contract",
    "fieldtype": "Link",
    "label": "Draft Contract",
    "options": "Contract",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "revision",
+   "fieldtype": "Int",
+   "label": "Revision",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Recorded each time the scope is sent."
+  },
+  {
+   "fieldname": "column_break_docs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "subscription",
+   "fieldtype": "Link",
+   "label": "Subscription",
+   "options": "Subscription",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "section_sharing",
+   "fieldtype": "Section Break",
+   "label": "Sharing",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "client_link",
+   "fieldtype": "Data",
+   "label": "Client page",
+   "options": "URL",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Anyone with this link can see the scope and tick items. Revoke it to close the page."
+  },
+  {
+   "fieldname": "client_key",
+   "fieldtype": "Data",
+   "label": "Client key",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "client_responded_on",
+   "fieldtype": "Datetime",
+   "label": "Client last ticked",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_sharing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nextcloud_folder",
+   "fieldtype": "Data",
+   "label": "Nextcloud folder",
+   "no_copy": 1,
+   "description": "Where File to Nextcloud writes the document and drawing; empty uses the settings' folder and the client's name."
+  },
+  {
+   "fieldname": "deck_card",
+   "fieldtype": "Data",
+   "label": "Deck card",
+   "no_copy": 1,
+   "description": "The owning card's link (…/deck/board/12/card/397) or its number."
+  },
+  {
+   "fieldname": "filed_on",
+   "fieldtype": "Datetime",
+   "label": "Last filed",
    "read_only": 1,
    "no_copy": 1
   }

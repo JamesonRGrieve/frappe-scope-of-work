@@ -26,7 +26,16 @@ class ScopeofWork(Document):
 			if not row.item_name:
 				row.item_name = frappe.get_cached_value("Item", row.item_code, "item_name")
 		self.keep_sent_ids()
-		scope.build(self)
+		scope.estimate(self, scope.build(self))
+
+	def on_update(self) -> None:
+		"""Sending the scope records a revision, unless nothing changed since the last one."""
+		before = self.get_doc_before_save()
+		if self.status != "Sent" or (before and before.status == "Sent"):
+			return
+		revision, draft, _changes = scope.revision_state(self)
+		if revision == 0 or draft:
+			scope.record_revision(self)
 
 	def keep_sent_ids(self) -> None:
 		"""Once a scope has gone to the client its IDs are the join to the quote, contract and invoices."""

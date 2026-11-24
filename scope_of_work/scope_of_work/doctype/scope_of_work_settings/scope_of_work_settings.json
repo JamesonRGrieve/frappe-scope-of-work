@@ -10,7 +10,15 @@
   "provides_general",
   "exclusions",
   "assumptions",
-  "changes"
+  "changes",
+  "section_client",
+  "client_page_intro",
+  "section_nextcloud",
+  "nextcloud_url",
+  "nextcloud_user",
+  "nextcloud_password",
+  "column_break_nextcloud",
+  "nextcloud_base_folder"
  ],
  "fields": [
   {
@@ -46,6 +54,49 @@
    "fieldtype": "Long Text",
    "label": "Changes and warranty",
    "description": "One per line"
+  },
+  {
+   "fieldname": "section_client",
+   "fieldtype": "Section Break",
+   "label": "Client page"
+  },
+  {
+   "fieldname": "client_page_intro",
+   "fieldtype": "Small Text",
+   "label": "Message at the top of the client page"
+  },
+  {
+   "fieldname": "section_nextcloud",
+   "fieldtype": "Section Break",
+   "label": "Nextcloud and Deck"
+  },
+  {
+   "fieldname": "nextcloud_url",
+   "fieldtype": "Data",
+   "label": "Nextcloud address",
+   "options": "URL",
+   "description": "For example https://cloud.example.com"
+  },
+  {
+   "fieldname": "nextcloud_user",
+   "fieldtype": "Data",
+   "label": "User"
+  },
+  {
+   "fieldname": "nextcloud_password",
+   "fieldtype": "Password",
+   "label": "App password"
+  },
+  {
+   "fieldname": "column_break_nextcloud",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nextcloud_base_folder",
+   "fieldtype": "Data",
+   "label": "Base folder",
+   "default": "Scopes of Work",
+   "description": "A client's files go in <base folder>/<client name> unless the scope names its own folder."
   }
  ],
  "index_web_pages_for_search": 0,

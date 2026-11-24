@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "creation": "2026-11-24 12:00:00.000000",
+ "description": "A catalogue item's prerequisite: another catalogue item.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "requirement",
+  "any_of"
+ ],
+ "fields": [
+  {
+   "fieldname": "requirement",
+   "fieldtype": "Link",
+   "label": "Requires",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 6
+  },
+  {
+   "fieldname": "any_of",
+   "fieldtype": "Check",
+   "label": "One of alternatives",
+   "in_list_view": 1,
+   "columns": 4,
+   "description": "Ticked rows are alternatives: at least one of them is needed, as well as every unticked row."
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-24 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Scope of Work",
+ "name": "Scope Item Requirement",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "istable": 1,
+ "editable_grid": 1
+}

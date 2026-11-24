@@ -1,0 +1,264 @@
+{
+ "actions": [],
+ "creation": "2026-11-24 12:00:00.000000",
+ "description": "A client's scope of work: items from the scope catalogue laid out as a tech tree, with the client's requests and Zephyrex's recommendations.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "party_type",
+  "party",
+  "prepared_for",
+  "column_break_head",
+  "status",
+  "date",
+  "company",
+  "price_list",
+  "currency",
+  "signatory",
+  "section_items",
+  "intro",
+  "items",
+  "tree_preview",
+  "section_terms",
+  "provides_general",
+  "provides",
+  "exclusions",
+  "assumptions",
+  "changes",
+  "payment_terms",
+  "tax_note",
+  "open_points",
+  "section_documents",
+  "quotation",
+  "column_break_docs",
+  "contract"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "party_type",
+   "fieldtype": "Select",
+   "label": "Prepared for (type)",
+   "options": "Customer\nLead\nProspect",
+   "default": "Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "party",
+   "fieldtype": "Dynamic Link",
+   "label": "Prepared for",
+   "options": "party_type",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "prepared_for",
+   "fieldtype": "Data",
+   "label": "Name on the document",
+   "description": "Defaults to the party's name; add a place or contact if wanted."
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nSent\nAccepted\nWithdrawn",
+   "default": "Draft",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Once Sent, item IDs are fixed: rows can be added or withdrawn, never renumbered or removed."
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "default": "Today",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "remember_last_selected_value": 1
+  },
+  {
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "Price List",
+   "options": "Price List",
+   "reqd": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "fetch_from": "price_list.currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "signatory",
+   "fieldtype": "Data",
+   "label": "Signed for the company by"
+  },
+  {
+   "fieldname": "section_items",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "intro",
+   "fieldtype": "Small Text",
+   "label": "Opening paragraph",
+   "description": "Optional; printed at the start of How this scope works."
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Scope of Work Item"
+  },
+  {
+   "fieldname": "tree_preview",
+   "fieldtype": "HTML",
+   "label": "Tree"
+  },
+  {
+   "fieldname": "section_terms",
+   "fieldtype": "Section Break",
+   "label": "Terms",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "provides_general",
+   "fieldtype": "Small Text",
+   "label": "The client provides, for every item"
+  },
+  {
+   "fieldname": "provides",
+   "fieldtype": "Table",
+   "label": "The client provides, by item",
+   "options": "Scope of Work Provision"
+  },
+  {
+   "fieldname": "exclusions",
+   "fieldtype": "Long Text",
+   "label": "Not included in any item",
+   "description": "One per line"
+  },
+  {
+   "fieldname": "assumptions",
+   "fieldtype": "Long Text",
+   "label": "Assumptions",
+   "description": "One per line"
+  },
+  {
+   "fieldname": "changes",
+   "fieldtype": "Long Text",
+   "label": "Changes and warranty",
+   "description": "One per line; empty uses the standard three lines"
+  },
+  {
+   "fieldname": "payment_terms",
+   "fieldtype": "Small Text",
+   "label": "Payment terms"
+  },
+  {
+   "fieldname": "tax_note",
+   "fieldtype": "Data",
+   "label": "Prices are",
+   "default": "before tax"
+  },
+  {
+   "fieldname": "open_points",
+   "fieldtype": "Long Text",
+   "label": "Open points",
+   "description": "One per line. Unpriced items and missing payment terms are added automatically."
+  },
+  {
+   "fieldname": "section_documents",
+   "fieldtype": "Section Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "quotation",
+   "fieldtype": "Link",
+   "label": "Draft Quotation",
+   "options": "Quotation",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_docs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contract",
+   "fieldtype": "Link",
+   "label": "Draft Contract",
+   "options": "Contract",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-24 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Scope of Work",
+ "name": "Scope of Work",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "Sales Manager",
+   "write": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "read": 1,
+   "role": "Sales User",
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "format:SOW-{YYYY}-{####}",
+ "naming_rule": "Expression",
+ "title_field": "title",
+ "show_title_field_in_link": 1,
+ "track_changes": 1
+}

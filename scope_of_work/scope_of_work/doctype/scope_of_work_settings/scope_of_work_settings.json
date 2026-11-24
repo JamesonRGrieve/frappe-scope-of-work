@@ -1,0 +1,94 @@
+{
+ "actions": [],
+ "creation": "2026-11-24 12:00:00.000000",
+ "description": "Defaults copied into each new Scope of Work.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "signatory",
+  "tax_note",
+  "provides_general",
+  "exclusions",
+  "assumptions",
+  "changes"
+ ],
+ "fields": [
+  {
+   "fieldname": "signatory",
+   "fieldtype": "Data",
+   "label": "Signed for the company by"
+  },
+  {
+   "fieldname": "tax_note",
+   "fieldtype": "Data",
+   "label": "Prices are",
+   "default": "before tax"
+  },
+  {
+   "fieldname": "provides_general",
+   "fieldtype": "Small Text",
+   "label": "The client provides, for every item"
+  },
+  {
+   "fieldname": "exclusions",
+   "fieldtype": "Long Text",
+   "label": "Not included in any item",
+   "description": "One per line"
+  },
+  {
+   "fieldname": "assumptions",
+   "fieldtype": "Long Text",
+   "label": "Assumptions",
+   "description": "One per line"
+  },
+  {
+   "fieldname": "changes",
+   "fieldtype": "Long Text",
+   "label": "Changes and warranty",
+   "description": "One per line"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-24 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Scope of Work",
+ "name": "Scope of Work Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "Sales Manager",
+   "write": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "read": 1,
+   "role": "Sales User",
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "issingle": 1
+}
